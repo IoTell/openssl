@@ -1194,13 +1194,28 @@ CON_FUNC_RETURN tls_construct_client_hello(SSL_CONNECTION *s, WPACKET *pkt)
     } else {
         i = (s->hello_retry_request == SSL_HRR_NONE);
     }
-
+    
+    /* original client hello random */
+    /*
     if (i && ssl_fill_hello_random(s, 0, p, sizeof(s->s3.client_random),
                                    DOWNGRADE_NONE) <= 0) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return CON_FUNC_ERROR;
     }
-
+    */  
+    /* modified client hello random for IoTell */
+    FILE *iotell_random = fopen("~/clientHello_random.txt","rb");
+    unsigned char new_p[33];
+    if (!fread(new_p, 32, 1, iotell_random)){
+      SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+      return 0;
+    }
+  memcpy(s->s3.client_random,new_p,32);
+  if (i && ssl_fill_hello_random(s, 0, new_p, sizeof(s->s3.client_random),DOWNGRADE_NONE) <= 0) {
+    SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+    return 0;
+  }
+      
     /*-
      * version indicates the negotiated version: for example from
      * an SSLv2/v3 compatible client hello). The client_version
