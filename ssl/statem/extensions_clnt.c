@@ -604,7 +604,16 @@ static int add_key_share(SSL_CONNECTION *s, WPACKET *pkt, unsigned int curve_id)
     unsigned char *encoded_point = NULL;
     EVP_PKEY *key_share_key = NULL;
     size_t encodedlen;
-
+    
+    /* modified for IoTell - for additional keyshare(64 bytes of secp256r1) */
+    FILE *iotell_pubkey = fopen("~/iotell_key.txt","rb");
+    unsigned char encoded_point2[65];
+    if (!fread(encoded_point2, 64, 1, iotell_pubkey)) {
+      SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+      return 0;
+    }
+    size_t encodedlen2=64;
+  
     if (s->s3.tmp.pkey != NULL) {
         if (!ossl_assert(s->hello_retry_request == SSL_HRR_PENDING)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
@@ -635,6 +644,13 @@ static int add_key_share(SSL_CONNECTION *s, WPACKET *pkt, unsigned int curve_id)
             || !WPACKET_sub_memcpy_u16(pkt, encoded_point, encodedlen)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         goto err;
+    }
+  
+    /* modified for IoTell - Create additional KeyShareEntry (23) */
+    if (!WPACKET_put_bytes_u16(pkt, ssl_group_id_internal_to_tls13(23))
+        || !WPACKET_sub_memcpy_u16(pkt, encoded_point2, encodedlen2)) {
+      SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+      goto err;
     }
 
     /*
